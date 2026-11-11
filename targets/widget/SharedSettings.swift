@@ -2,33 +2,35 @@ import CoreText
 import Foundation
 import UIKit
 
-/// Uygulama ile widget arasında App Group üzerinden paylaşılan ayarlar.
+/// Uygulama (React Native) ile widget arasında App Group üzerinden paylaşılan ayarlar.
+/// Uygulama tarafı `src/widgetBridge.ts` içinde ExtensionStorage ile yazar.
+/// ExtensionStorage sayıları tam sayı (Int) olarak kaydeder.
 enum SharedSettings {
-    /// project.yml içindeki APP_GROUP ile aynı olmalı.
+    /// app.json'daki App Group ile aynı olmalı.
     static let appGroupID = "group.com.ramazan29arslan.pati"
 
     static var defaults: UserDefaults {
         UserDefaults(suiteName: appGroupID) ?? .standard
     }
 
+    /// 1 = açık, 0 = kapalı. Hiç ayarlanmadıysa açık.
     static var reactToBattery: Bool {
-        get { defaults.object(forKey: "reactToBattery") as? Bool ?? true }
-        set { defaults.set(newValue, forKey: "reactToBattery") }
+        (defaults.object(forKey: "reactToBattery") as? NSNumber)?.boolValue ?? true
     }
 
-    /// Uygulama açıkken kaydedilen son pil bilgisi (widget okuyamazsa yedek).
+    /// Uygulamanın en son kaydettiği pil yüzdesi (0-100).
     static var lastBatteryLevel: Float? {
-        get { defaults.object(forKey: "lastBatteryLevel") as? Float }
-        set { defaults.set(newValue, forKey: "lastBatteryLevel") }
+        guard let percent = defaults.object(forKey: "batteryPercent") as? NSNumber else { return nil }
+        return percent.floatValue / 100
     }
 
     static var lastCharging: Bool {
-        get { defaults.bool(forKey: "lastCharging") }
-        set { defaults.set(newValue, forKey: "lastCharging") }
+        (defaults.object(forKey: "batteryCharging") as? NSNumber)?.boolValue ?? false
     }
 }
 
 enum BatteryReader {
+    /// Önce cihazdan okur; okunamazsa uygulamanın kaydettiği değeri kullanır.
     @MainActor
     static func read() -> (level: Float?, charging: Bool) {
         let device = UIDevice.current
@@ -40,20 +42,14 @@ enum BatteryReader {
         }
         return (SharedSettings.lastBatteryLevel, SharedSettings.lastCharging)
     }
-
-    @MainActor
-    static func saveCurrent() {
-        let reading = read()
-        if let level = reading.level { SharedSettings.lastBatteryLevel = level }
-        SharedSettings.lastCharging = reading.charging
-    }
 }
 
 /// Paketteki tüm .ttf dosyalarını çalışma anında kaydeder.
 /// Böylece yeni karakter eklerken Info.plist'e dokunmak gerekmez.
 enum FontRegistry {
     private static let registration: Void = {
-        let urls = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? []
+        let urls = (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
+            + (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: "assets") ?? [])
         for url in urls {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }

@@ -15,7 +15,7 @@ from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
-FONT_DIR = ROOT / "Shared" / "Fonts"
+FONT_DIR = ROOT / "targets" / "widget" / "assets"
 PREVIEW = ROOT / "docs" / "preview"
 
 SAMPLES = ["0:00", "0:07", "0:59", "1:00", "9:58", "12:34", "1:23:45", "23:59:59", "100:00:03"]

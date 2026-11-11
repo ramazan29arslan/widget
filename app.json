@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Pati",
+    "slug": "pati",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ramazan29arslan.pati",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.ramazan29arslan.pati"]
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": ["@bacons/apple-targets", "expo-font"]
+  }
+}

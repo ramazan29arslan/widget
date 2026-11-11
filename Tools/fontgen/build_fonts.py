@@ -12,8 +12,9 @@ Her karakter için ayrıca bir poz fontu:
   Harfler (a, s, z, ...) ruh hali pozlarıdır. Text("z") -> uyuyan kedi.
 
 Çıktılar:
-  Shared/Fonts/*.ttf
-  Shared/CharacterCatalog.generated.swift
+  targets/widget/assets/*.ttf                  (widget fontları)
+  targets/widget/CharacterCatalog.generated.swift  (widget kataloğu)
+  src/catalog.generated.ts                     (uygulama kataloğu)
 """
 from __future__ import annotations
 
@@ -31,8 +32,9 @@ ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "characters"))
 
-FONT_DIR = ROOT / "Shared" / "Fonts"
-SWIFT_OUT = ROOT / "Shared" / "CharacterCatalog.generated.swift"
+FONT_DIR = ROOT / "targets" / "widget" / "assets"
+SWIFT_OUT = ROOT / "targets" / "widget" / "CharacterCatalog.generated.swift"
+TS_OUT = ROOT / "src" / "catalog.generated.ts"
 
 UPM = 1000
 ADVANCE = 2000
@@ -154,6 +156,36 @@ def main():
     SWIFT_OUT.parent.mkdir(parents=True, exist_ok=True)
     SWIFT_OUT.write_text("\n".join(lines), encoding="utf-8")
     print(f"→ {SWIFT_OUT.relative_to(ROOT)}")
+    write_ts(catalog)
+
+
+def write_ts(catalog):
+    import json
+    out = [
+        "// BU DOSYA OTOMATİK ÜRETİLİR. Düzenleme: Tools/fontgen/build_fonts.py",
+        "import type { PatiCharacter } from './types';",
+        "",
+        "export const FONTS = {",
+    ]
+    for _, _, clips, pose_font, _ in catalog:
+        for font in [f for _, _, f in clips] + [pose_font]:
+            out.append(f"  {json.dumps(font)}: require('../targets/widget/assets/{font}.ttf'),")
+    out += ["};", "", "export const CHARACTERS: PatiCharacter[] = ["]
+    for cid, name, clips, pose_font, pose_keys in catalog:
+        out.append("  {")
+        out.append(f"    id: {json.dumps(cid)},")
+        out.append(f"    name: {json.dumps(name, ensure_ascii=False)},")
+        out.append("    clips: [")
+        for c, t, f in clips:
+            out.append(f"      {{ id: {json.dumps(c)}, title: {json.dumps(t, ensure_ascii=False)}, fontName: {json.dumps(f)} }},")
+        out.append("    ],")
+        out.append(f"    poseFontName: {json.dumps(pose_font)},")
+        out.append(f"    poses: {json.dumps(pose_keys)},")
+        out.append("  },")
+    out += ["];", ""]
+    TS_OUT.parent.mkdir(parents=True, exist_ok=True)
+    TS_OUT.write_text("\n".join(out), encoding="utf-8")
+    print(f"→ {TS_OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

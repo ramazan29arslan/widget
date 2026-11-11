@@ -1,6 +1,7 @@
 # Pati – kilit ekranında yaşayan karakterler
 
 iPhone kilit ekranına (saatin altındaki satıra) eklenen hareketli karakter widget'ları.
+Uygulama **Expo (React Native)** ile yazıldı, widget ise iOS'un zorunlu kıldığı şekilde **SwiftUI/WidgetKit** ile. İkisi tek projede duruyor ve **Mac olmadan EAS Build ile bulutta** derleniyor.
 
 | Kuyruk sallama | Yürüyüş | Uykuda nefes | Yuvarlanma |
 |---|---|---|---|
@@ -12,9 +13,33 @@ Ruh hali pozları (uyanık, oyuncu, uykulu, yorgun, uyuyor):
 
 > Önizlemeler hızlandırılmıştır. Gerçek widget saniyede 1 kare oynar.
 
+## Mac olmadan iPhone'a kurulum
+
+Gereken: Windows/Linux/Mac fark etmez, Node.js 20+, bir [Expo hesabı](https://expo.dev/signup) ve **ücretli Apple Developer Program üyeliği** (yıllık 99 $). Widget içeren bir uygulamayı Mac'siz imzalayıp telefona yüklemenin tek yolu bu.
+
+```bash
+git clone https://github.com/ramazan29arslan/widget.git
+cd widget
+npm install
+npm install -g eas-cli
+eas login
+```
+
+1. `app.json` içinde `ios` bölümüne Apple Team ID'ni ekle: `"appleTeamId": "ABCDE12345"` (developer.apple.com → Membership details).
+2. iPhone'unu kaydet: `eas device:create` → çıkan bağlantıyı iPhone'da aç, profili yükle.
+3. Derle: `eas build -p ios --profile preview`
+   - EAS, Apple hesabına giriş ister; sertifikaları, App Group'u ve widget için gereken her şeyi kendisi oluşturur.
+   - 15–25 dakika sonra bir QR kod / bağlantı verir. iPhone'da açıp uygulamayı yükle.
+4. iPhone'da **Ayarlar → Gizlilik ve Güvenlik → Geliştirici Modu**'nu aç (ilk kurulumda istenir).
+5. Kilit ekranına basılı tut → **Özelleştir** → **Kilit Ekranı** → saatin altındaki alana dokun → **Pati**.
+
+App Store / TestFlight için: `eas build -p ios --profile production` ve ardından `eas submit -p ios`.
+
+> Expo Go ile yalnızca uygulama ekranları açılır; widget ve App Group bağlantısı Expo Go'da çalışmaz. Widget için mutlaka EAS ile derlenmiş sürüm gerekir.
+
 ## İki widget türü
 
-**Canlı Pati:** Saniyede bir kare oynayan 10 karelik döngü. Ayarlardan karakter ve animasyon seçilir. "Otomatik" seçilirse klip ruh haline göre değişir (uykuluyken nefes alır, akşam yuvarlanır).
+**Canlı Pati:** Saniyede bir kare oynayan 10 karelik döngü. Widget ayarlarından karakter ve animasyon seçilir. "Otomatik" seçilirse klip ruh haline göre değişir (uykuluyken nefes alır, akşam yuvarlanır).
 
 **Ruh Hali Pati:** Saate, şarja ve şarj durumuna göre poz değiştirir.
 
@@ -27,7 +52,7 @@ Ruh hali pozları (uyanık, oyuncu, uykulu, yorgun, uyuyor):
 | Pil < %20 | Yorgun, yere serilmiş |
 | Diğer saatler | Uyanık |
 
-Kurallar `Shared/Mood.swift` içinde.
+Kurallar iki yerde aynı tutulur: `targets/widget/Mood.swift` (widget) ve `src/mood.ts` (uygulama).
 
 ## Animasyon nasıl çalışıyor?
 
@@ -37,26 +62,21 @@ Kilit ekranı widget'ları sürekli animasyon oynatamaz, ama sistemin sayaç met
 2. Fontta bir OpenType `calt` kuralı var: ardından başka rakam veya `:` gelen her rakam, genişliği 0 olan boş bir glife dönüşür.
 3. Sayaç `1:23:45` yazdığında ekranda yalnızca son hane (`5`) görünür, yani 5. kare. Bir saniye sonra 6. kare gelir.
 
-Pozlar da aynı yöntemle çizilir: poz fontunda `a`, `s`, `z`, `t`, `p` harfleri birer pozdur.
+Pozlar da aynı yöntemle çizilir: poz fontunda `a`, `s`, `z`, `t`, `p` harfleri birer pozdur. Uygulama aynı fontları `expo-font` ile yükleyip önizleme gösterir.
 
-> ⚠️ Bu yöntem resmi bir animasyon API'si değildir. Gerçek cihazda test edilmesi, her yeni iOS sürümünde tekrar kontrol edilmesi gerekir. Ruh Hali widget'ı tamamen standart API'lerle çalışır.
+> ⚠️ Bu yöntem resmi bir animasyon API'si değildir. Gerçek cihazda test edilmeli ve her yeni iOS sürümünde tekrar kontrol edilmelidir. Ruh Hali widget'ı tamamen standart API'lerle çalışır.
 
-## Kurulum
+## Uygulama ↔ widget iletişimi
 
-Gereken: Mac, Xcode 15+, iOS 17+ iPhone, ücretsiz ya da ücretli Apple Developer hesabı.
+`@bacons/apple-targets` paketindeki `ExtensionStorage`, App Group (`group.com.ramazan29arslan.pati`) üzerinden veri yazar:
 
-```bash
-brew install xcodegen
-git clone https://github.com/ramazan29arslan/widget.git
-cd widget
-xcodegen            # Pati.xcodeproj oluşturur
-open Pati.xcodeproj
-```
+| Anahtar | Yazan | Anlamı |
+|---|---|---|
+| `reactToBattery` | Uygulama (anahtar) | 1/0: şarja tepki ver |
+| `batteryPercent` | Uygulama (expo-battery) | Son pil yüzdesi, widget okuyamazsa yedek |
+| `batteryCharging` | Uygulama | 1/0 |
 
-1. Xcode'da her iki hedef (Pati, PatiWidgetExtension) için **Signing & Capabilities** → Team seç.
-2. Bundle ID'ler başkasına aitse `project.yml` içindeki `com.ramazan29arslan` önekini ve App Group adını değiştir (`Shared/SharedSettings.swift` içindeki `appGroupID` ile aynı olmalı), sonra `xcodegen` komutunu tekrar çalıştır.
-3. iPhone'u bağla, **Pati** şemasıyla çalıştır.
-4. Kilit ekranına basılı tut → **Özelleştir** → **Kilit Ekranı** → saatin altındaki alana dokun → **Pati**.
+Bundle ID'yi değiştirirsen App Group adını üç yerde güncelle: `app.json`, `src/widgetBridge.ts`, `targets/widget/SharedSettings.swift`.
 
 ## Yeni karakter eklemek
 
@@ -64,7 +84,7 @@ open Pati.xcodeproj
 cd Tools/fontgen
 pip install -r requirements.txt
 cp characters/cat.py characters/kopek.py   # ID, NAME, çizimler, CLIPS, POSES'u düzenle
-python3 build_fonts.py   # fontları ve Shared/CharacterCatalog.generated.swift'i üretir
+python3 build_fonts.py   # fontları + Swift ve TypeScript kataloglarını üretir
 python3 test_fonts.py    # sayaç testleri + docs/preview önizlemeleri
 ```
 
@@ -73,17 +93,17 @@ Kurallar:
 - Tuval 2000 × 1000 font birimidir (2:1, kilit ekranı dikdörtgen widget'ına uygun).
 - Kilit ekranı tek renk gösterdiği için çizimler siluet ya da çizgi stilinde olmalı. Delikler (göz, burun) `hole` ile oyulur.
 - Ruh hali pozlarında `a s z t p` harflerini kullan. Eksik poz olursa ilk poz gösterilir.
-- Uygulama ve widget, paketteki tüm `.ttf` dosyalarını çalışma anında kaydeder; Info.plist'e dokunmak gerekmez.
 
 ## Klasörler
 
 ```
-App/                 Ana uygulama (galeri, önizleme, ayarlar)
-WidgetExtension/     Canlı Pati ve Ruh Hali Pati widget'ları, ayar intent'leri
-Shared/              Karakter modeli, ruh hali motoru, fontlar (iki hedef de kullanır)
-Tools/fontgen/       Çizimden font üreten ve test eden Python araçları
-docs/preview/        Üretilen önizlemeler
+App.tsx, src/          Expo uygulaması (galeri, canlı önizleme, ayarlar)
+targets/widget/        SwiftUI widget kodu ve fontlar (apple-targets ile Xcode'a eklenir)
+Tools/fontgen/         Çizimden font üreten ve test eden Python araçları
+docs/preview/          Üretilen önizlemeler
 ```
+
+`ios/` klasörü depoda tutulmaz; `npx expo prebuild` ya da EAS Build her seferinde yeniden üretir.
 
 ## Yol haritası
 
@@ -91,4 +111,4 @@ docs/preview/        Üretilen önizlemeler
 - [ ] SVG karelerden font üretimi (tasarımcı çizimleri için)
 - [ ] Yeni karakterler: köpek, kurbağa, bulut, hayalet
 - [ ] Hava durumu ve konuma göre pozlar (WeatherKit)
-- [ ] Ücretli karakter paketleri (StoreKit)
+- [ ] Ücretli karakter paketleri

@@ -1,13 +1,22 @@
-# Xcode (proje XcodeGen ile üretilir)
-*.xcodeproj
-*.xcworkspace
-xcuserdata/
-DerivedData/
-build/
-App/Info.plist
-App/Pati.entitlements
-WidgetExtension/Info.plist
-WidgetExtension/PatiWidget.entitlements
+# Expo / React Native
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+*.tsbuildinfo
+
+# Native klasörler prebuild/EAS ile üretilir
+/ios
+/android
+
+# Anahtarlar
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.env*.local
 
 # macOS / Python
 .DS_Store

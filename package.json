@@ -1,0 +1,25 @@
+{
+  "name": "pati",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@bacons/apple-targets": "^5.0.0",
+    "expo": "~58.0.24",
+    "expo-battery": "~58.0.4",
+    "expo-font": "~58.0.12",
+    "expo-status-bar": "~58.0.5",
+    "react": "19.3.0",
+    "react-native": "0.88.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}
