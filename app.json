@@ -9,13 +9,19 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ramazan29arslan.pati",
+      "appleTeamId": "U5AM9FWB8A",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.ramazan29arslan.pati"]
+        "com.apple.security.application-groups": [
+          "group.com.ramazan29arslan.pati"
+        ]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "plugins": ["@bacons/apple-targets", "expo-font"]
+    "plugins": [
+      "@bacons/apple-targets",
+      "expo-font"
+    ]
   }
 }
