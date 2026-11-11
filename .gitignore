@@ -1,0 +1,16 @@
+# Xcode (proje XcodeGen ile üretilir)
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+build/
+App/Info.plist
+App/Pati.entitlements
+WidgetExtension/Info.plist
+WidgetExtension/PatiWidget.entitlements
+
+# macOS / Python
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
