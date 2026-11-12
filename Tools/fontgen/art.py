@@ -21,7 +21,8 @@ clip.json (hepsi isteğe bağlı):
       "invert": false,           # true: koyu figür (siyah silüet) dolgu olur
       "scale": 1.0,              # sahnede büyüklük
       "offset": [0, 0],          # sahnede kaydırma (font birimi)
-      "autocrop": true           # karelerin ortak sınırına kırp
+      "autocrop": true,          # karelerin ortak sınırına kırp
+      "align": true              # karakter hücrede kayıyorsa kareleri gövdeye göre hizala
     }
 
 Dönüşüm:
@@ -80,14 +81,21 @@ def art_poses(char_id: str) -> dict[str, Path]:
     return {p.stem: p for p in sorted(root.iterdir()) if p.suffix.lower() in IMAGE_EXT and len(p.stem) == 1}
 
 
+def pose_options(char_id: str) -> dict:
+    """art/<karakter>/poses/poses.json: pozlar için clip.json ile aynı ayarlar."""
+    return _read_json(ART_DIR / char_id / "poses" / "poses.json")
+
+
 def art_characters() -> dict[str, dict]:
     """character.json içeren klasörler: tamamen görselden oluşan yeni karakterler."""
     if not ART_DIR.is_dir():
         return {}
     out = {}
     for sub in sorted(ART_DIR.iterdir()):
+        if not sub.is_dir():
+            continue
         meta = _read_json(sub / "character.json")
-        if sub.is_dir() and meta:
+        if meta:
             out[sub.name] = meta
     return out
 
@@ -127,6 +135,34 @@ def load_frames(clip: ClipArt) -> list[Image.Image]:
 
 def masks(frames: list[Image.Image], threshold=0.72, invert=False) -> list[np.ndarray]:
     return [_mask(f, threshold, invert) for f in frames]
+
+
+def align(ms: list[np.ndarray], anchor: str = "body") -> list[np.ndarray]:
+    """Yapay zekâ karelerinde karakter hücre içinde kayabilir; her kareyi ilk kareye hizala.
+    Gövde (en büyük dolu bölge) üzerinden faz korelasyonu ile yalnızca öteleme bulunur."""
+    from skimage.registration import phase_cross_correlation
+
+    def core(m):
+        filled = ndi.binary_fill_holes(m)
+        lab = measure.label(filled)
+        if lab.max() == 0:
+            return filled.astype(np.float32)
+        big = np.argmax(np.bincount(lab.ravel())[1:]) + 1
+        body = lab == big
+        # kuyruk gibi ince uzantıları at: aşındır + geri büyüt
+        body = ndi.binary_opening(body, iterations=max(2, min(m.shape) // 60))
+        return body.astype(np.float32)
+
+    h = max(m.shape[0] for m in ms)
+    w = max(m.shape[1] for m in ms)
+    padded = [np.pad(m, ((0, h - m.shape[0]), (0, w - m.shape[1]))) for m in ms]
+    ref = core(padded[0])
+    out = [padded[0]]
+    for m in padded[1:]:
+        shift, _, _ = phase_cross_correlation(ref, core(m), upsample_factor=1)
+        dy, dx = int(round(shift[0])), int(round(shift[1]))
+        out.append(ndi.shift(m.astype(np.uint8), (dy, dx), order=0, mode="constant", cval=0).astype(bool))
+    return out
 
 
 def _mask(img: Image.Image, threshold: float, invert: bool) -> np.ndarray:
@@ -170,6 +206,8 @@ def trace_clip(clip: ClipArt, stage_w: int) -> list[SkPath]:
     o = clip.options
     frames = load_frames(clip)
     ms = masks(frames, o.get("threshold", 0.72), o.get("invert", False))
+    if o.get("align", True):
+        ms = align(ms)
     return place(ms, stage_w, o)
 
 

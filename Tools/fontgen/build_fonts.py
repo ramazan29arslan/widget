@@ -172,7 +172,7 @@ def _render_frame(args):
     if key in ch.art_poses:
         ck = (cid, "poses")
         if ck not in _CACHE:
-            _CACHE[ck] = art.trace_poses(ch.art_poses)
+            _CACHE[ck] = art.trace_poses(ch.art_poses, options=art.pose_options(cid))
         return glyph_variants(_CACHE[ck][key], False)
     _, fn = ch.poses[key]
     return glyph_variants(fn().to_path(), False)
