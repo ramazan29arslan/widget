@@ -1,13 +1,13 @@
 /** @type {import('@bacons/apple-targets/app.plugin').ConfigFunction} */
-module.exports = (config) => ({
-  type: "widget",
-  name: "PatiWidget",
-  displayName: "Pati",
-  deploymentTarget: "17.0",
-  frameworks: ["SwiftUI", "WidgetKit", "AppIntents"],
-  // Ana uygulamanın app.json'daki App Group'unu kullan (ExtensionStorage ile paylaşım)
-  entitlements: {
-    "com.apple.security.application-groups":
-      config.ios.entitlements["com.apple.security.application-groups"],
-  },
-});
+module.exports = (config) => {
+  // App Group yalnızca app.config.js'de açıldıysa (PATI_APP_GROUP=1) widget'a da eklenir.
+  const groups = config.ios?.entitlements?.["com.apple.security.application-groups"];
+  return {
+    type: "widget",
+    name: "PatiWidget",
+    displayName: "Pati",
+    deploymentTarget: "17.0",
+    frameworks: ["SwiftUI", "WidgetKit", "AppIntents"],
+    ...(groups ? { entitlements: { "com.apple.security.application-groups": groups } } : {}),
+  };
+};
