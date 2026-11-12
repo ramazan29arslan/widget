@@ -21,7 +21,8 @@ export type MoodInputs = {
   isCharging: boolean;
 };
 
-export function computeMood(input: MoodInputs, reactToBattery: boolean): Mood {
+export function computeMood(input: MoodInputs, reactToBattery: boolean, override: Mood | null = null): Mood {
+  if (override) return override;
   if (reactToBattery) {
     if (input.batteryLevel !== null && input.batteryLevel < 0.2 && !input.isCharging) return 'tired';
     if (input.isCharging) return 'sleeping';

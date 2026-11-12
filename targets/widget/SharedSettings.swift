@@ -24,6 +24,11 @@ enum SharedSettings {
         return percent.floatValue / 100
     }
 
+    /// Uygulamadan elle seçilen ruh hali ("awake", "sleepy"...). Yoksa otomatik.
+    static var moodOverride: Mood? {
+        (defaults.string(forKey: "moodOverride")).flatMap(Mood.init(rawValue:))
+    }
+
     static var lastCharging: Bool {
         (defaults.object(forKey: "batteryCharging") as? NSNumber)?.boolValue ?? false
     }

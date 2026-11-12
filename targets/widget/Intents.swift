@@ -68,6 +68,21 @@ struct AnimationQuery: EntityQuery {
     }
 }
 
+// MARK: - Panorama parçası
+
+enum WidgetPartOption: String, AppEnum {
+    case full, left, right
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Yerleşim"
+    static let caseDisplayRepresentations: [WidgetPartOption: DisplayRepresentation] = [
+        .full: "Tek widget",
+        .left: "Panorama – sol parça",
+        .right: "Panorama – sağ parça",
+    ]
+
+    var part: WidgetPart { WidgetPart(rawValue: rawValue) ?? .full }
+}
+
 // MARK: - Widget ayarları
 
 struct AnimatedPatiIntent: WidgetConfigurationIntent {
@@ -79,6 +94,10 @@ struct AnimatedPatiIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Animasyon")
     var animation: AnimationEntity?
+
+    /// Kilit ekranında 4 kareyi kaplamak için iki widget ekleyip birini sol, diğerini sağ yap.
+    @Parameter(title: "Yerleşim", default: .full)
+    var part: WidgetPartOption
 }
 
 struct MoodPatiIntent: WidgetConfigurationIntent {

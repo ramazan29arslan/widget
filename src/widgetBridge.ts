@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 
-// Widget ile paylaşılan App Group. app.json ve targets/widget/SharedSettings.swift ile aynı olmalı.
+import type { Mood } from './mood';
+
+// Widget ile paylaşılan App Group. app.config.js ve targets/widget/SharedSettings.swift ile aynı olmalı.
 export const APP_GROUP = 'group.com.ramazan29arslan.pati';
 
 type Storage = {
@@ -13,7 +15,7 @@ let reload: (() => void) | null = null;
 
 if (Platform.OS === 'ios') {
   try {
-    // Native modül yalnızca iOS derlemesinde (EAS / prebuild) bulunur, Expo Go'da yoktur.
+    // Native modül yalnızca derlenmiş iOS uygulamasında bulunur, Expo Go'da yoktur.
     const { ExtensionStorage } = require('@bacons/apple-targets');
     storage = new ExtensionStorage(APP_GROUP);
     reload = () => ExtensionStorage.reloadWidget();
@@ -32,6 +34,18 @@ export function getReactToBattery(): boolean {
 /** Widget tarafında Int okunur (ExtensionStorage sayıları Int kaydeder). */
 export function setReactToBattery(on: boolean) {
   storage?.set('reactToBattery', on ? 1 : 0);
+  reloadWidgets();
+}
+
+/** Elle seçilen ruh hali; null = otomatik. */
+export function getMoodOverride(): Mood | null {
+  const v = storage?.get('moodOverride');
+  return (v || null) as Mood | null;
+}
+
+export function setMoodOverride(mood: Mood | null) {
+  // Değer verilmezse anahtar silinir.
+  storage?.set('moodOverride', mood ?? undefined);
   reloadWidgets();
 }
 

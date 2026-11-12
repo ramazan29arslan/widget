@@ -1,6 +1,7 @@
 import Foundation
 
-/// Karakterin ruh hali. Saat, şarj ve şarj durumuna göre hesaplanır.
+/// Karakterin ruh hali. Saat, şarj ve şarj durumuna göre hesaplanır;
+/// kullanıcı uygulamadan elle de seçebilir.
 enum Mood: String, CaseIterable, Codable {
     case awake, sleepy, sleeping, tired, playful
 
@@ -24,15 +25,6 @@ enum Mood: String, CaseIterable, Codable {
         case .playful: return "Oyuncu"
         }
     }
-
-    /// "Otomatik" animasyon seçiliyken bu ruh haline uyan klip.
-    var preferredClipID: String {
-        switch self {
-        case .awake: return "tail"
-        case .sleepy, .sleeping, .tired: return "breathe"
-        case .playful: return "roll"
-        }
-    }
 }
 
 struct MoodInputs {
@@ -42,9 +34,12 @@ struct MoodInputs {
 }
 
 enum MoodEngine {
+    /// src/mood.ts ile aynı kurallar.
     static func mood(for input: MoodInputs,
                      reactToBattery: Bool,
+                     override: Mood? = SharedSettings.moodOverride,
                      calendar: Calendar = .current) -> Mood {
+        if let override { return override }
         if reactToBattery {
             if let level = input.batteryLevel, level < 0.2, !input.isCharging {
                 return .tired            // şarj azaldı: yere serilir
