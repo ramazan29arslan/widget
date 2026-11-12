@@ -92,7 +92,11 @@ Pozlar da aynı yöntemle çizilir: poz fontunda `a`, `s`, `z`, `t`, `p` harfler
 
 Bundle ID'yi değiştirirsen App Group adını üç yerde güncelle: `app.json`, `src/widgetBridge.ts`, `targets/widget/SharedSettings.swift`.
 
-## Yeni karakter eklemek
+## Görselden karakter (önerilen)
+
+Gerçekçi çizimler için PNG kareleri ya da sprite sheet'i `Tools/fontgen/art/<karakter>/<klip>/` klasörüne koy. `build_fonts.py`, bunları potrace ile vektöre çevirip widget fontu yapar. Ayrıntılar ve yapay zekâ istem örnekleri için [Tools/fontgen/art/README.md](Tools/fontgen/art/README.md) dosyasına bak.
+
+## Yeni karakter eklemek (kodla çizim)
 
 ```bash
 cd Tools/fontgen

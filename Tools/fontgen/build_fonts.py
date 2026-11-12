@@ -26,15 +26,19 @@ import json
 import pkgutil
 import sys
 import time
+from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 from fontTools.fontBuilder import FontBuilder
+from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from pathops import Path as SkPath, PathOp
 from sketch import safe_op as op
+
+import art
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
@@ -71,7 +75,7 @@ def glyph_variants(path: SkPath, wide: bool):
     """Bir kare için glif(ler): dar klipte tek, panoramada full/L/R."""
     def make(p: SkPath, transform=(1, 0, 0, 1, 0, 0)):
         pen = TTGlyphPen(None)
-        p.draw(TransformPen(pen, transform))
+        p.draw(TransformPen(Cu2QuPen(pen, max_err=1.0), transform))
         g = pen.glyph()
         return g
 
@@ -89,25 +93,89 @@ def glyph_variants(path: SkPath, wide: bool):
     return {"": full, "-L": left, "-R": right}
 
 
+# ----------------------------------------------------------------- kayıt
+
+@dataclass
+class Clip:
+    title: str
+    wide: bool
+    fn: object = None            # kodla çizim: () -> [Drawing × 10]
+    art: object = None           # art.ClipArt (görsel kaynak varsa öncelikli)
+
+
+@dataclass
+class Character:
+    id: str
+    name: str
+    clips: dict
+    mood_clips: dict
+    poses: dict                  # harf -> (başlık, çizim fonksiyonu | None)
+    art_poses: dict              # harf -> görsel dosyası
+
+
+def registry() -> list[Character]:
+    """Kodla çizilen karakterler + art/ klasöründeki görseller (görsel varsa onu kullanır)."""
+    import characters
+
+    chars: dict[str, Character] = {}
+    for m in sorted(pkgutil.iter_modules(characters.__path__), key=lambda m: m.name):
+        if m.name.startswith("_"):
+            continue
+        mod = importlib.import_module(m.name)
+        clips = {k: Clip(t, w, fn) for k, (t, fn, w) in mod.CLIPS.items()}
+        chars[mod.ID] = Character(mod.ID, mod.NAME, clips, dict(getattr(mod, "MOOD_CLIPS", {})),
+                                  dict(mod.POSES), {})
+    for cid, meta in art.art_characters().items():
+        if cid not in chars:
+            chars[cid] = Character(cid, meta.get("name", cid), {}, dict(meta.get("moodClips", {})), {}, {})
+        else:
+            chars[cid].mood_clips.update(meta.get("moodClips", {}))
+    for cid, ch in chars.items():
+        for key, ca in art.art_clips(cid).items():
+            old = ch.clips.get(key)
+            title = ca.options.get("title") or (old.title if old else key)
+            wide = ca.options.get("wide", old.wide if old else False)
+            ca.options["wide"] = wide
+            ch.clips[key] = Clip(title, wide, old.fn if old else None, ca)
+        ch.art_poses = art.art_poses(cid)
+        for k in ch.art_poses:
+            if k not in ch.poses:
+                ch.poses[k] = (POSE_TITLES.get(k, k), None)
+    order = {"cat": 0, "dog": 1, "janissary": 2}
+    return sorted((c for c in chars.values() if c.clips), key=lambda c: (order.get(c.id, 99), c.id))
+
+
+POSE_TITLES = {"a": "Uyanık", "s": "Uykulu", "z": "Uyuyor", "t": "Yorgun", "p": "Oyuncu"}
+_REG: dict | None = None
+_CACHE: dict = {}
+
+
+def _char(cid) -> Character:
+    global _REG
+    if _REG is None:
+        _REG = {c.id: c for c in registry()}
+    return _REG[cid]
+
+
 def _render_frame(args):
-    mod_name, kind, key, index = args
-    mod = importlib.import_module(mod_name)
+    cid, kind, key, index = args
+    ch = _char(cid)
     if kind == "clip":
-        _, fn, wide = mod.CLIPS[key]
-        frames = _cached_frames(mod, key, fn)
-        return glyph_variants(frames[index].to_path(), wide)
-    _, fn = mod.POSES[key]
+        clip = ch.clips[key]
+        ck = (cid, key)
+        if ck not in _CACHE:
+            if clip.art:
+                _CACHE[ck] = art.trace_clip(clip.art, 2 * ADVANCE if clip.wide else ADVANCE)
+            else:
+                _CACHE[ck] = [d.to_path() for d in clip.fn()]
+        return glyph_variants(_CACHE[ck][index], clip.wide)
+    if key in ch.art_poses:
+        ck = (cid, "poses")
+        if ck not in _CACHE:
+            _CACHE[ck] = art.trace_poses(ch.art_poses)
+        return glyph_variants(_CACHE[ck][key], False)
+    _, fn = ch.poses[key]
     return glyph_variants(fn().to_path(), False)
-
-
-_FRAME_CACHE: dict = {}
-
-
-def _cached_frames(mod, key, fn):
-    ck = (mod.__name__, key)
-    if ck not in _FRAME_CACHE:
-        _FRAME_CACHE[ck] = fn()
-    return _FRAME_CACHE[ck]
 
 
 # ----------------------------------------------------------------- font
@@ -170,47 +238,42 @@ def write_pose_font(ps: str, poses: dict):
 # ----------------------------------------------------------------- ana akış
 
 def main(only: set[str] | None = None):
-    import characters
-
     t0 = time.time()
-    mods = [importlib.import_module(m.name)
-            for m in sorted(pkgutil.iter_modules(characters.__path__), key=lambda m: m.name)
-            if not m.name.startswith("_")]
-    order = {"cat": 0, "dog": 1, "janissary": 2}
-    mods.sort(key=lambda m: order.get(m.ID, 99))
-
+    chars = registry()
+    todo = [c for c in chars if not only or c.id in only]
     jobs = []
-    for mod in mods:
-        if only and mod.ID not in only:
-            continue
-        for key in mod.CLIPS:
-            jobs += [(mod.__name__, "clip", key, i) for i in range(10)]
-        jobs += [(mod.__name__, "pose", key, 0) for key in mod.POSES]
-
-    # Aynı klibin kareleri aynı işçiye gitsin diye klip başına grupla
+    for ch in todo:
+        for key in ch.clips:
+            jobs += [(ch.id, "clip", key, i) for i in range(10)]
+        jobs += [(ch.id, "pose", key, 0) for key in ch.poses]
+    # Aynı klibin kareleri aynı işçiye gitsin (görsel izleme klip başına bir kez yapılır)
     results = {}
     with ProcessPoolExecutor() as ex:
         for job, res in zip(jobs, ex.map(_render_frame, jobs, chunksize=10)):
             results[job] = res
 
     catalog = []
-    for mod in mods:
+    for ch in chars:
         clips = []
-        for key, (title, _, wide) in mod.CLIPS.items():
-            ps = f"Pati-{mod.ID}-{key}"
-            if not only or mod.ID in only:
-                variants = [results[(mod.__name__, "clip", key, i)] for i in range(10)]
+        build = not only or ch.id in only
+        for key, clip in ch.clips.items():
+            ps = f"Pati-{ch.id}-{key}"
+            if build:
+                variants = [results[(ch.id, "clip", key, i)] for i in range(10)]
                 for suffix in variants[0]:
                     write_clip_font(ps + suffix, [v[suffix] for v in variants])
-            clips.append({"id": key, "title": title, "fontName": ps, "wide": wide,
-                          "leftFont": ps + "-L" if wide else None, "rightFont": ps + "-R" if wide else None})
-        pose_ps = f"Pati-{mod.ID}-poses"
-        if not only or mod.ID in only:
-            write_pose_font(pose_ps, {k: results[(mod.__name__, "pose", k, 0)][""] for k in mod.POSES})
-        mood_clips = {m: getattr(mod, "MOOD_CLIPS", {}).get(m, clips[0]["id"]) for m in MOODS}
-        catalog.append({"id": mod.ID, "name": mod.NAME, "clips": clips, "poseFontName": pose_ps,
-                        "poses": list(mod.POSES.keys()), "moodClips": mood_clips})
-        print(f"  ✓ {mod.ID}: {len(clips)} klip, {len(mod.POSES)} poz")
+            clips.append({"id": key, "title": clip.title, "fontName": ps, "wide": clip.wide,
+                          "leftFont": ps + "-L" if clip.wide else None,
+                          "rightFont": ps + "-R" if clip.wide else None})
+        pose_ps = f"Pati-{ch.id}-poses"
+        if build:
+            write_pose_font(pose_ps, {k: results[(ch.id, "pose", k, 0)][""] for k in ch.poses})
+        mood_clips = {m: ch.mood_clips.get(m, clips[0]["id"]) for m in MOODS}
+        catalog.append({"id": ch.id, "name": ch.name, "clips": clips, "poseFontName": pose_ps,
+                        "poses": list(ch.poses.keys()), "moodClips": mood_clips})
+        src = sum(1 for c in ch.clips.values() if c.art)
+        print(f"  ✓ {ch.id}: {len(clips)} klip ({src} görselden), {len(ch.poses)} poz"
+              f"{' (görselden)' if ch.art_poses else ''}")
 
     write_swift(catalog)
     write_ts(catalog)
