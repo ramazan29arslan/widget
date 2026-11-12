@@ -50,6 +50,10 @@ ADVANCE = 2000
 ASCENT, DESCENT = 1000, -100
 DIGITS = "0123456789"
 BLANK_CHARS = ":.    ∶-−"
+# Kilit ekranında iki widget arasındaki boşluk (font birimi, ≈ 10 pt).
+# Sağ parça bu kadar sağdan kesilir; böylece aradan geçen karakter bölünüp
+# esnemek yerine bir direğin arkasından geçiyormuş gibi görünür.
+SEAM_GAP = 140
 MOODS = ["awake", "sleepy", "sleeping", "tired", "playful"]
 
 
@@ -80,7 +84,8 @@ def glyph_variants(path: SkPath, wide: bool):
         return {"": make(keep(path, 0, ADVANCE))}
     full = make(path, (0.5, 0, 0, 0.5, 0, 15))
     left = make(keep(path, 0, ADVANCE))
-    right = make(keep(path, ADVANCE, 2 * ADVANCE), (1, 0, 0, 1, -ADVANCE, 0))
+    r0 = ADVANCE + SEAM_GAP
+    right = make(keep(path, r0, r0 + ADVANCE), (1, 0, 0, 1, -r0, 0))
     return {"": full, "-L": left, "-R": right}
 
 

@@ -59,7 +59,8 @@ struct AnimatedPatiView: View {
     let entry: AnimatedEntry
 
     var body: some View {
-        GlyphView(fontName: entry.clip.font(for: entry.part), content: .animation(anchor: entry.anchor))
+        GlyphView(fontName: entry.clip.font(for: entry.part), content: .animation(anchor: entry.anchor),
+                  horizontal: entry.part == .left ? .trailing : entry.part == .right ? .leading : .center)
             .widgetAccentable()
             .containerBackground(for: .widget) { Color.clear }
     }
@@ -77,6 +78,7 @@ struct AnimatedPatiWidget: Widget {
         .configurationDisplayName("Canlı Pati")
         .description("Saniyede bir kare. İki tane ekleyip Sol/Sağ parça seçersen 4 kareyi kaplar.")
         .supportedFamilies([.accessoryRectangular, .accessoryCircular, .systemSmall])
+        .contentMarginsDisabled()
     }
 }
 

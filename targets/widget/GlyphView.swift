@@ -12,15 +12,21 @@ struct GlyphView: View {
 
     let fontName: String
     let content: Content
+    /// Panorama parçalarında çizim iç kenara yaslanır (sol parça sağa, sağ parça sola),
+    /// böylece iki widget arasındaki boşluk en aza iner.
+    var horizontal: HorizontalAlignment = .center
 
     var body: some View {
         GeometryReader { geo in
-            let size = max(1, min(geo.size.width / 2.0, geo.size.height / 1.1))
+            // Glif yüksekliği 1 em; alttaki 0.1 em'lik inen kısım boş olduğu için dışarıda kalabilir.
+            let size = max(1, min(geo.size.width / 2.0, geo.size.height))
             label
                 .font(.custom(fontName, fixedSize: size))
                 .lineLimit(1)
-                .multilineTextAlignment(.center)
-                .frame(width: geo.size.width, height: geo.size.height)
+                .fixedSize()
+                .offset(y: size * 0.1)
+                .frame(width: geo.size.width, height: geo.size.height,
+                       alignment: Alignment(horizontal: horizontal, vertical: .bottom))
         }
     }
 

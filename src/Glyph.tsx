@@ -21,6 +21,8 @@ export function useFrame(): number {
 
 type Props = {
   fontName: string;
+  /** Panorama parçalarında iç kenara yaslama */
+  align?: 'center' | 'flex-start' | 'flex-end';
   /** Pozlar için harf; verilmezse animasyon kareleri oynar. */
   letter?: string;
   width: number;
@@ -29,9 +31,9 @@ type Props = {
 };
 
 /** Karakter glifini çizer. Glifler 2:1 oranlıdır (2000 × 1000 font birimi). */
-export function Glyph({ fontName, letter, width, color = '#F6DEE4', style }: Props) {
+export function Glyph({ fontName, letter, width, color = '#F6DEE4', style, align = 'center' }: Props) {
   return (
-    <View style={[{ width, height: width / 2 + 4, alignItems: 'center', justifyContent: 'flex-end' }, style]}>
+    <View style={[{ width, height: width / 2 + 4, alignItems: align, justifyContent: 'flex-end' }, style]}>
       {letter !== undefined ? (
         <GlyphText fontName={fontName} text={letter} width={width} color={color} />
       ) : (

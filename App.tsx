@@ -203,11 +203,11 @@ function LockScreen({
       <View style={styles.lockRow}>
         {clip.wide ? (
           <>
-            <Slot width={slotW}>
-              <Glyph fontName={clip.leftFont!} width={slotW - 8} />
+            <Slot width={slotW} align="flex-end">
+              <Glyph fontName={clip.leftFont!} width={slotW} align="flex-end" />
             </Slot>
-            <Slot width={slotW}>
-              <Glyph fontName={clip.rightFont!} width={slotW - 8} />
+            <Slot width={slotW} align="flex-start">
+              <Glyph fontName={clip.rightFont!} width={slotW} align="flex-start" />
             </Slot>
           </>
         ) : (
@@ -230,8 +230,16 @@ function LockScreen({
   );
 }
 
-function Slot({ width, children }: { width: number; children: ReactNode }) {
-  return <View style={[styles.slot, { width, height: width / 2.1 }]}>{children}</View>;
+function Slot({
+  width,
+  children,
+  align = 'center',
+}: {
+  width: number;
+  children: ReactNode;
+  align?: 'center' | 'flex-start' | 'flex-end';
+}) {
+  return <View style={[styles.slot, { width, height: width / 2.1, alignItems: align }]}>{children}</View>;
 }
 
 // MARK: - Küçük parçalar
